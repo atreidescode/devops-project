@@ -1,0 +1,41 @@
+# docker-compose.yml — Lance tous les services du projet ensemble
+# Commande : docker compose up -d --build
+# Docker Compose crée automatiquement un réseau : les services se trouvent par leur nom
+
+services:
+  # --- Backend (API Python FastAPI) ---
+  backend:
+    build: ./backend                    # Construit l'image depuis backend/Dockerfile
+    ports:
+      - "8000:8000"                     # Port machine:port container
+    depends_on:
+      - db                              # Attend que PostgreSQL soit prêt avant de démarrer
+    environment:
+      # Cette variable active le mode PostgreSQL dans main.py
+      # Sans elle, le backend utilise le stockage in-memory
+      - DATABASE_URL=postgresql://user:pass@db:5432/tasks
+      #                                    ^^
+      #                        "db" = le nom du service ci-dessous
+      #                        Docker le traduit en IP automatiquement
+
+  # --- Frontend (React servi par nginx) ---
+  frontend:
+    build: ./frontend                   # Construit l'image depuis frontend/Dockerfile
+    ports:
+      - "80:80"                         # Accessible sur http://localhost
+    depends_on:
+      - backend
+
+  # --- Base de données PostgreSQL ---
+  db:
+    image: postgres:16                  # Image officielle, pas besoin de Dockerfile
+    environment:
+      - POSTGRES_USER=user             # Utilisateur de la base
+      - POSTGRES_PASSWORD=pass         # Mot de passe (en vrai, utiliser un secret !)
+      - POSTGRES_DB=tasks              # Nom de la base créée au démarrage
+    volumes:
+      - postgres_data:/var/lib/postgresql/data  # Persiste les données entre les redémarrages
+
+# Volumes nommés — les données persistent même après docker compose down
+volumes:
+  postgres_data:
